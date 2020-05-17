@@ -4,7 +4,7 @@ provider "aws" {
 }
 
 # --- IAM ---
-resource "aws_iam_instance_profile" "access_profile" {
+resource "aws_iam_instance_profile" "s3_access_profile" {
   name = "s3_access"
   role = "${aws_iam_role.s3_access_role.name}"
 }
@@ -345,4 +345,42 @@ resource "aws_db_instance" "wp_db" {
   db_subnet_group_name   = "${aws_db_subnet_group.wp_rds_subnet_group.name}"
   vpc_security_group_ids = ["${aws_security_group.wp_rds_sg.id}"]
   skip_final_snapshot    = true
+}
+
+# --- Key Pair ---
+
+resource "aws_key_pair" "wp_auth" {
+  key_name = "${var.key_name}"
+  public_key = "${var.public_key_path}"
+}
+
+
+# --- Development Server ---
+
+resource "aws_instance" "wp_dev" {
+  instance_type = "${var.dev_instance_type}"
+  ami = "${var.dev_ami}"
+  key_name = "${aws_key_pair.wp_auth.id}"
+  vpc_security_group_ids = ["${aws_security_group.wp_dev_sg.id}"]
+  iam_instance_profile = "${aws_iam_instance_profile.s3_access_profile.id}"
+  subnet_id = "${aws_subnet.wp_public1.id}"
+
+  tags {
+    Name = "wp_dev"
+  }
+
+  provisioner "local-exec" {
+    command = <<EOD
+cat <<EOF > inventory
+[dev]
+${aws_instance.wp_dev.public_ip}
+[dev:vars]
+s3code=${aws_s3_bucket.wp_code_bucket.bucket}
+domain=${var.domain_name}
+EOF
+EOD
+  }
+  provisioner "local-exec" {
+    command = "aws ec2 wait instance-status-ok --instance-ids ${aws_instance.wp_dev.id} --profile tfansible && ansible-playbook wordpress.yml"
+  }
 }

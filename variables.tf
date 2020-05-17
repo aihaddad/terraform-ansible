@@ -14,3 +14,7 @@ variable "db_instance_class" {}
 variable "db_name" {}
 variable "db_user" {}
 variable "db_password" {}
+variable "key_name" {}
+variable "public_key_path" {}
+variable "dev_instance_type" {}
+variable "dev_ami" {}
