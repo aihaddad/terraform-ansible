@@ -48,6 +48,7 @@ EOF
 }
 
 # --- VPC ---
+
 resource "aws_vpc" "wp_vpc" {
   cidr_block           = "${var.vpc_cidr}"
   enable_dns_hostnames = true
@@ -57,6 +58,8 @@ resource "aws_vpc" "wp_vpc" {
     Name = "wp_vpc"
   }
 }
+
+# --- Network Routing ---
 
 resource "aws_internet_gateway" "wp_igw" {
   vpc_id = "${aws_vpc.wp_vpc.id}"
@@ -86,6 +89,8 @@ resource "aws_default_route_table" "wp_private_rt" {
     Name = "wp_private"
   }
 }
+
+# --- Subnets ---
 
 # The REPEAT EVERY SINGLE THING method :)
 resource "aws_subnet" "wp_public1" {
@@ -165,6 +170,8 @@ resource "aws_subnet" "wp_rds3" {
   }
 }
 
+# Unused
+
 resource "aws_db_subnet_group" "wp_rds_subnet_group" {
   name = "wp_rds_subnet_group"
 
@@ -187,4 +194,100 @@ resource "aws_route_table_association" "wp_public1_assoc" {
 resource "aws_route_table_association" "wp_public2_assoc" {
   subnet_id      = "${aws_subnet.wp_public2.id}"
   route_table_id = "${aws_route_table.wp_public_rt.id}"
+}
+
+# --- Security Groups ---
+
+resource "aws_security_group" "wp_dev_sg" {
+  name        = "wp_ev_sg"
+  description = "Used for access to dev instances"
+  vpc_id      = "${aws_vpc.wp_vpc.id}"
+
+  # SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.localip}", "${var.cloudip}"]
+  }
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["${var.localip}"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "wp_public_sg" {
+  name        = "wp_public_sg"
+  description = "Used to provide public HTTP access to the ELB"
+  vpc_id    = "${aws_vpc.wp_vpc.id}"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "wp_private_sg" {
+  name        = "wp_private_sg"
+  description = "Used for private instances"
+  vpc_id      = "${aws_vpc.wp_vpc.id}"
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["${var.vpc_cidr}"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "wp_eds_sg" {
+  name        = "wp_rds_sg"
+  description = "Used for RDS instances"
+  vpc_id      = "${aws_vpc.wp_vpc.id}"
+
+  ingress {
+    from_port = 3306
+    to_port   = 3306
+    protocol  = "tcp"
+
+    security_groups = [
+      "${aws_security_group.wp_dev_sg.id}",
+      "${aws_security_group.wp_public_sg.id}",
+      "${aws_security_group.wp_private_sg.id}",
+    ]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
