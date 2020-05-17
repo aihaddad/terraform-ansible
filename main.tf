@@ -170,8 +170,6 @@ resource "aws_subnet" "wp_rds3" {
   }
 }
 
-# Unused
-
 resource "aws_db_subnet_group" "wp_rds_subnet_group" {
   name = "wp_rds_subnet_group"
 
@@ -230,7 +228,7 @@ resource "aws_security_group" "wp_dev_sg" {
 resource "aws_security_group" "wp_public_sg" {
   name        = "wp_public_sg"
   description = "Used to provide public HTTP access to the ELB"
-  vpc_id    = "${aws_vpc.wp_vpc.id}"
+  vpc_id      = "${aws_vpc.wp_vpc.id}"
 
   ingress {
     from_port   = 80
@@ -267,7 +265,7 @@ resource "aws_security_group" "wp_private_sg" {
   }
 }
 
-resource "aws_security_group" "wp_eds_sg" {
+resource "aws_security_group" "wp_rds_sg" {
   name        = "wp_rds_sg"
   description = "Used for RDS instances"
   vpc_id      = "${aws_vpc.wp_vpc.id}"
@@ -295,12 +293,14 @@ resource "aws_security_group" "wp_eds_sg" {
 # --- VPC Endpoint for S3 ---
 
 resource "aws_vpc_endpoint" "wp_private_s3_endpoint" {
-  vpc_id = "${aws_vpc.wp_vpc.id}"
+  vpc_id       = "${aws_vpc.wp_vpc.id}"
   service_name = "com.amazonaws.${var.aws_region}.s3"
+
   route_table_ids = [
     "${aws_vpc.wp_vpc.default_route_table_id}",
-    "${aws_route_table.wp_public_rt.id}"
+    "${aws_route_table.wp_public_rt.id}",
   ]
+
   policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -323,11 +323,26 @@ resource "random_id" "wp_random" {
 }
 
 resource "aws_s3_bucket" "wp_code_bucket" {
-  bucket = "${var.domain_name}-${random_id.wp_random.dec}"
-  acl = "private"
+  bucket        = "${var.domain_name}-${random_id.wp_random.dec}"
+  acl           = "private"
   force_destroy = true
-  
+
   tags {
     Name = "CodeBucket"
   }
+}
+
+# --- RDS ---
+
+resource "aws_db_instance" "wp_db" {
+  allocated_storage      = 10
+  engine                 = "mysql"
+  engine_version         = "5.6.27"
+  instance_class         = "${var.db_instance_class}"
+  name                   = "${var.db_name}"
+  username               = "${var.db_user}"
+  password               = "${var.db_password}"
+  db_subnet_group_name   = "${aws_db_subnet_group.wp_rds_subnet_group.name}"
+  vpc_security_group_ids = ["${aws_security_group.wp_rds_sg.id}"]
+  skip_final_snapshot    = true
 }
