@@ -318,12 +318,12 @@ EOF
 
 # --- S3 Bucket(s) ---
 
-resource "random_id" "wp_random" {
+resource "random_id" "wp_s3_random" {
   byte_length = 2
 }
 
 resource "aws_s3_bucket" "wp_code_bucket" {
-  bucket        = "${var.domain_name}-${random_id.wp_random.dec}"
+  bucket        = "${var.domain_name}-${random_id.wp_s3_random.dec}"
   acl           = "private"
   force_destroy = true
 
@@ -418,5 +418,27 @@ resource "aws_elb" "wp_elb" {
 
   tags {
     Name = "wp_${var.domain_name}-elb"
+  }
+}
+
+# --- Golden AMI
+
+resource "random_id" "wp_ami_random" {
+  byte_length = 3
+}
+
+resource "aws_ami_from_instance" "wp_golden" {
+  name               = "wp_ami-${random_id.wp_ami_random.b64}"
+  source_instance_id = "${aws_instance.wp_dev.id}"
+
+  provisioner "local-exec" {
+    command = <<EOT
+cat <<EOF > userdata
+#!/bin/bash
+/usr/bin/aws s3 sync s3://${aws_s3_bucket.wp_code_bucket.bucket} /var/www/html
+/bin/touch /var/spool/root
+sudo /bin/echo '*/5 * * * * aws s3 sync s3://${aws_s3_bucket.wp_code_bucket.bucket} /var/www/html' >> /var/spool/cron/root
+EOF
+EOT
   }
 }
