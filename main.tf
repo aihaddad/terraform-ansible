@@ -350,20 +350,19 @@ resource "aws_db_instance" "wp_db" {
 # --- Key Pair ---
 
 resource "aws_key_pair" "wp_auth" {
-  key_name = "${var.key_name}"
+  key_name   = "${var.key_name}"
   public_key = "${var.public_key_path}"
 }
-
 
 # --- Development Server ---
 
 resource "aws_instance" "wp_dev" {
-  instance_type = "${var.dev_instance_type}"
-  ami = "${var.dev_ami}"
-  key_name = "${aws_key_pair.wp_auth.id}"
+  instance_type          = "${var.dev_instance_type}"
+  ami                    = "${var.dev_ami}"
+  key_name               = "${aws_key_pair.wp_auth.id}"
   vpc_security_group_ids = ["${aws_security_group.wp_dev_sg.id}"]
-  iam_instance_profile = "${aws_iam_instance_profile.s3_access_profile.id}"
-  subnet_id = "${aws_subnet.wp_public1.id}"
+  iam_instance_profile   = "${aws_iam_instance_profile.s3_access_profile.id}"
+  subnet_id              = "${aws_subnet.wp_public1.id}"
 
   tags {
     Name = "wp_dev"
@@ -380,7 +379,44 @@ domain=${var.domain_name}
 EOF
 EOD
   }
+
   provisioner "local-exec" {
     command = "aws ec2 wait instance-status-ok --instance-ids ${aws_instance.wp_dev.id} --profile tfansible && ansible-playbook wordpress.yml"
+  }
+}
+
+#  --- ELB ---
+
+resource "aws_elb" "wp_elb" {
+  name            = "${var.domain_name}"
+  security_groups = ["${aws_security_group.wp_public_sg.id}"]
+
+  subnets = [
+    "${aws_subnet.wp_public1.id}",
+    "${aws_subnet.wp_public2.id}",
+  ]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = "${var.elb_healthy_threshold}"
+    unhealthy_threshold = "${var.elb_unhealthy_threshold}"
+    timeout             = "${var.elb_timeout}"
+    target              = "TCP:80"
+    interval            = "${var.elb_interval}"
+  }
+
+  connection_draining         = true
+  connection_draining_timeout = 400
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+
+  tags {
+    Name = "wp_${var.domain_name}-elb"
   }
 }
