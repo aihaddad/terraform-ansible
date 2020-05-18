@@ -22,3 +22,9 @@ variable "elb_healthy_threshold" {}
 variable "elb_unhealthy_threshold" {}
 variable "elb_timeout" {}
 variable "elb_interval" {}
+variable "lc_instance_type" {}
+variable "asg_max" {}
+variable "asg_min" {}
+variable "asg_cap" {}
+variable "asg_grace" {}
+variable "asg_hct" {}
