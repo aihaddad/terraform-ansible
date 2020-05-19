@@ -28,3 +28,4 @@ variable "asg_min" {}
 variable "asg_cap" {}
 variable "asg_grace" {}
 variable "asg_hct" {}
+variable "delegation_set_id" {}
