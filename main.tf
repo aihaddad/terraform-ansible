@@ -39,7 +39,7 @@ resource "aws_iam_role" "s3_access_role" {
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
       "Principal": {
-        "Service": "ec2.amazon.aws.com"
+        "Service": "ec2.amazonaws.com"
       }
     }
   ]
@@ -337,7 +337,7 @@ resource "aws_s3_bucket" "wp_code_bucket" {
 resource "aws_db_instance" "wp_db" {
   allocated_storage      = 10
   engine                 = "mysql"
-  engine_version         = "5.6.27"
+  engine_version         = "5.6"
   instance_class         = "${var.db_instance_class}"
   name                   = "${var.db_name}"
   username               = "${var.db_user}"
