@@ -1,0 +1,37 @@
+---
+- hosts: dev
+  become: yes
+  remote_user: ec2-user
+  tasks:
+
+    - name: Install Apache-PHP server
+      package:
+        name: {{ item }}
+        state: latest
+      with_items:
+        - httpd
+        - php
+        - php-mysql
+
+    - name: Download WordPress
+      get_url: 
+        url: http://wordpress.org/wordpress-latest.tar.gz
+        dest: /tmp/wordpress.tar.gz
+        force: yes
+
+    - name: Extract WordPress
+      command: tar xzf /tmp/wordpress.tar.gz -C /var/www/html --strip-components 1
+
+    - name: Make directory tree readable
+      file:
+        path: /var/www/html
+        mode: 0755
+        recurse: yes
+        owner: apache
+        group: apache
+
+    - name: Ensure Apache service running
+      service:
+        name: httpd
+        state: started
+        enabled: yes

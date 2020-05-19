@@ -490,43 +490,44 @@ resource "aws_autoscaling_group" "wp_asg" {
 }
 
 # --- Domain ---
+# Commented out because I don't want to handle domains at the moment
 
-resource "aws_route53_zone" "primary" {
-  name = "${var.domain_name}.com"
-  delegation_set_id = "${var.delegation_set_id}"
-}
+# resource "aws_route53_zone" "primary" {
+#   name = "${var.domain_name}.com"
+#   delegation_set_id = "${var.delegation_set_id}"
+# }
 
-resource "aws_route53_record" "www" {
-  zone_id = "${aws_route53_zone.primary.zone_id}"
-  name = "www.${var.domain_name}.com"
-  type = "A"
+# resource "aws_route53_record" "www" {
+#   zone_id = "${aws_route53_zone.primary.zone_id}"
+#   name = "www.${var.domain_name}.com"
+#   type = "A"
 
-  alias {
-    name = "${aws_elb.wp_elb.dns_name}"
-    zone_id = "${aws_elb.wp_elb.zone_id}"
-    evaluate_target_health = false
-  }
-}
+#   alias {
+#     name = "${aws_elb.wp_elb.dns_name}"
+#     zone_id = "${aws_elb.wp_elb.zone_id}"
+#     evaluate_target_health = false
+#   }
+# }
 
-resource "aws_route53_record" "dev" {
-  zone_id = "${aws_route53_zone.primary.zone_id}"
-  name = "dev.${var.domain_name}.com"
-  type = "A"
-  ttl = "300"
-  records = ["${aws_instance.wp_dev.public_ip}"]
-}
+# resource "aws_route53_record" "dev" {
+#   zone_id = "${aws_route53_zone.primary.zone_id}"
+#   name = "dev.${var.domain_name}.com"
+#   type = "A"
+#   ttl = "300"
+#   records = ["${aws_instance.wp_dev.public_ip}"]
+# }
 
-resource "aws_route53_zone" "private" {
-  name = "${var.domain_name}.com"
-  vpc {
-    vpc_id = "${aws_vpc.wp_vpc.id}"
-  }
-}
+# resource "aws_route53_zone" "private" {
+#   name = "${var.domain_name}.com"
+#   vpc {
+#     vpc_id = "${aws_vpc.wp_vpc.id}"
+#   }
+# }
 
-resource "aws_route53_record" "db" {
-  zone_id = "${aws_route53_zone.private.zone_id}"
-  name = "db.${var.domain_name}.com"
-  type = "CNAME"
-  ttl = "300"
-  records = ["${aws_db_instance.wp_db.address.}"]
-}
+# resource "aws_route53_record" "db" {
+#   zone_id = "${aws_route53_zone.private.zone_id}"
+#   name = "db.${var.domain_name}.com"
+#   type = "CNAME"
+#   ttl = "300"
+#   records = ["${aws_db_instance.wp_db.address.}"]
+# }
